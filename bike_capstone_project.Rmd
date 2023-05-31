@@ -1,0 +1,240 @@
+---
+title: "Cyclistic Case Study Capstone Project"
+author: "Dan Lee"
+date: "2023-05-22"
+output: html_document
+---
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+<font size="4">**Google Data Analytics Certificate Capstone Project**</font> 
+
+*Optional Case study project for the google data analytics certificate offered on coursera*
+
+**Company background**
+
+In 2016, Cyclistic launched a successful bike-share offering. Since then, the program has grown to a fleet of 5,824 bicycles that
+are geotracked and locked into a network of 692 stations across Chicago. The bikes can be unlocked from one station and
+returned to any other station in the system anytime.
+
+Until now, Cyclistic’s marketing strategy relied on building general awareness and appealing to broad consumer segments.
+One approach that helped make these things possible was the flexibility of its pricing plans: single-ride passes, full-day passes,
+and annual memberships. Customers who purchase single-ride or full-day passes are referred to as casual riders. Customers
+who purchase annual memberships are Cyclistic members.
+
+Cyclistic’s finance analysts have concluded that annual members are much more profitable than casual riders. Although the
+pricing flexibility helps Cyclistic attract more customers, Cyclistic believes maximizing the number of annual memberships, by converting single-ride and full-day users to annual members will drive revenue growth.
+
+**Business question**
+
+How do annual members and casual riders use Cyclistic bikes differently?
+
+**Setting up my environment**
+```{r set-up-environment}
+setwd("E:/googledatanalytics/12monthbikedataset")
+```
+**Libraries used to process data**
+```{r message = FALSE}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+Cyclistic bike trip data set is available at the following link: https://divvy-tripdata.s3.amazonaws.com/index.html
+
+This case study was done using 12 months of data from the Cyclistic bike trip data set.
+
+**Upload the data**
+```{r}
+data_2022_01 <- read.csv("202201-divvy-tripdata.csv")
+data_2022_02 <- read.csv("202202-divvy-tripdata.csv")
+data_2022_03 <- read.csv("202203-divvy-tripdata.csv")
+data_2022_04 <- read.csv("202204-divvy-tripdata.csv")
+data_2022_05 <- read.csv("202205-divvy-tripdata.csv")
+data_2022_06 <- read.csv("202206-divvy-tripdata.csv")
+data_2022_07 <- read.csv("202207-divvy-tripdata.csv")
+data_2022_08 <- read.csv("202208-divvy-tripdata.csv")
+data_2022_09 <- read.csv("202209-divvy-tripdata.csv")
+data_2022_10 <- read.csv("202210-divvy-tripdata.csv")
+data_2022_11 <- read.csv("202211-divvy-tripdata.csv")
+data_2022_12 <- read.csv("202212-divvy-tripdata.csv")
+```
+**Combine all data into single dataframe then drop data tables**
+```{r}
+data_2022_12_months <- rbind(data_2022_01, data_2022_02, data_2022_03, data_2022_04, data_2022_05, data_2022_06, data_2022_07, data_2022_08, data_2022_09, data_2022_10, data_2022_11, data_2022_12)
+remove(data_2022_01, data_2022_02, data_2022_03, data_2022_04, data_2022_05, data_2022_06, data_2022_07, data_2022_08, data_2022_09, data_2022_10, data_2022_11, data_2022_12)
+```
+**Copy of new dataframe**
+```{r}
+data_2022_12_months_2 <- data_2022_12_months
+```
+**Reformatting data types**
+
+adding ride length, day of week, date, month, day, year and season. 
+ordering week, month, and season.
+```{r}
+#adding ride length in minutes
+data_2022_12_months_2$ride_length_mins <- difftime(data_2022_12_months_2$ended_at
+                                              , data_2022_12_months$started_at
+                                              , units = "mins")
+#create numeric columns for the day of week, date, month, day, year
+data_2022_12_months_2$day_of_week <- wday(data_2022_12_months_2$started_at)
+data_2022_12_months_2$date <- as.Date(data_2022_12_months_2$started_at)
+data_2022_12_months_2$day_of_week <- format(as.Date(data_2022_12_months_2$date), "%A")
+data_2022_12_months_2$month <- format(as.Date(data_2022_12_months_2$date), "%m") 
+data_2022_12_months_2$day <- format(as.Date(data_2022_12_months_2$date), "%d")
+data_2022_12_months_2$year <- format(as.Date(data_2022_12_months_2$date), "%Y")
+#create column for seasons classification
+data_2022_12_months_2 <- data_2022_12_months_2 %>% mutate(season = 
+                                                            case_when(month == "03" ~ "Spring",month == "04" ~ "Spring",month == "05" ~ "Spring",month == "06" ~ "Summer",month == "07" ~ "Summer",month == "08" ~ "Summer",month == "09" ~ "Fall",month == "10" ~ "Fall",month == "11" ~ "Fall",month == "12" ~ "Winter",month == "01" ~ "Winter",month == "02" ~ "Winter")
+)
+#arranges day of week in order
+data_2022_12_months_2$day_of_week <- ordered(data_2022_12_months_2$day_of_week, levels=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
+#arranges season in order
+data_2022_12_months_2$season <- ordered(data_2022_12_months_2$season, levels=c("Spring", "Summer", "Fall", "Winter"))
+#arranges months in order
+  data_2022_12_months_2$month <- ordered(data_2022_12_months_2$month, levels=c("01", "02", "03", "04", "05", "06", "07","08","09","10","11","12"))
+#converts values from scientific notation <- run this for y axis proper formatting
+options(scipen = 999)
+```
+**Cleaning data**
+  
+removing duplicates, nulls, ride length <= 0 and unnecessary columns.
+rename and convert ride_length_mins to numeric values.
+```{r}
+data_2022_12_months_2 <- distinct(data_2022_12_months_2)
+data_2022_12_months_2 <- na.omit(data_2022_12_months_2)
+data_2022_12_months_2 <- data_2022_12_months_2[!(data_2022_12_months_2$ride_length_mins <=0),]
+data_2022_12_months_2 <- data_2022_12_months_2[ , ! names(data_2022_12_months_2) %in% c("ride_id", "start_station_id", "end_station_id", "start_lat", "start_lng", "end_lat", "end_lng")]
+data_2022_12_months_2 <- data_2022_12_months_2 %>% rename(member_type = member_casual)
+data_2022_12_months_2$ride_length_mins <- as.numeric(as.character(data_2022_12_months_2$ride_length_mins))
+```
+**Viewing the dataframe**
+```{r}
+colnames(data_2022_12_months_2)
+dim(data_2022_12_months_2)
+head(data_2022_12_months_2,5)
+```
+**Descriptive Analysis**
+  
+The analysis finds the mean, median, maximum and minimum of the ride_length_mins column. These statistics are then compared across both rider types.
+```{r}
+aggregate(data_2022_12_months_2$ride_length_mins ~ data_2022_12_months_2$member_type, FUN = mean)
+aggregate(data_2022_12_months_2$ride_length_mins ~ data_2022_12_months_2$member_type, FUN = median)
+aggregate(data_2022_12_months_2$ride_length_mins ~ data_2022_12_months_2$member_type, FUN = min)
+aggregate(data_2022_12_months_2$ride_length_mins ~ data_2022_12_months_2$member_type, FUN = max)
+```
+This analysis shows number of members and bikes by type.
+```{r count-of-member-bike-types}
+#count member types
+data_2022_12_months_2 %>% count(member_type)
+#count bike types
+data_2022_12_months_2 %>% group_by(rideable_type) %>% count(rideable_type)
+#total rides by bike type by member type
+data_2022_12_months_2 %>%
+  group_by(member_type, rideable_type) %>% 
+  count(rideable_type)
+```
+**The following bar plot shows member vs casual number of rides by bicycle types**
+```{r}
+#plot 1 bicycle type by number of rides
+  data_2022_12_months_2 %>%
+    group_by(rideable_type, member_type) %>%
+    summarise(count_trips = n()) %>%  
+    ggplot(aes(x=rideable_type, y=count_trips, fill=member_type, color=member_type)) +
+    geom_bar(stat='identity', position='dodge') +
+    theme_bw()+
+    labs(title="Number of Rides by Bicycle Type", subtitle = "From the Cyclistic Bike Trips data set", x="Bicycle   Type", y="Number of Rides")
+```
+
+Casual riders rode classic bikes 888,853, docked bikes 174,852, and electric bikes 1,252,895.
+
+Annual member riders rode classic bikes 1,708,993, and electric bikes 1,635,735 with this information we can conclude that docked bicycle might not be necessary as they have the least amount of usages out of all the bikes and only casual riders seem to use them.
+
+**The following bar plot shows member vs casual number of rides by day of week**
+```{r}
+#plot 2 number of rides by day of week  
+  data_2022_12_months_2 %>% 
+    group_by(member_type, day_of_week) %>%
+    summarise(count_trips = n()) %>%  
+    ggplot(aes(x=day_of_week, y=count_trips, fill=member_type, color=member_type)) +
+    geom_bar(stat='identity', position = 'dodge') +
+    theme_bw()+
+    labs(title ="Number of Rides by Day of Week", subtitle = "From the Cyclistic Bike Trips data set", x = "Day of Week", y = "Number of Rides")
+```
+
+This graph shows that the number of rides differ from member type as casual riders tend to ride more during the weekend and that members ride more consistently throughout the whole week.
+
+**The following bar plot show member vs casual number of rides by month**
+```{r}
+  data_2022_12_months_2 %>%
+    group_by(member_type, month) %>%
+    summarise(count_trips = n()) %>%  
+    ggplot(aes(x=month, y=count_trips, fill=member_type, color=member_type)) +
+    geom_bar(stat='identity', position = 'dodge') +
+    scale_x_discrete(labels=c('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC')) +
+    theme_bw() +
+    labs(title ="Number of Rides per Month", subtitle = "From the Cyclistic Bike Trips data set", x = "Month", y = "Number of Rides")
+```
+
+Filtering the data by seasons show that the most busiest ride usages are during the summer and drop off towards the winter seasons which could indicate that most riders prefer to ride bikes when the weather is warmer rather than colder.
+
+```{r}
+#total rides by season and member type
+data_2022_12_months_2 %>%
+    group_by(season, member_type) %>% 
+    count(season)
+#total rides by season
+  data_2022_12_months_2 %>%
+    group_by(season) %>% 
+    count(season)
+```
+**The following bar plot show member vs casual number of rides by season**
+```{r}
+  data_2022_12_months_2 %>%
+    group_by(member_type, season) %>% 
+    summarise(count_trips = n()) %>% 
+    ggplot(aes(x=season, y=count_trips, fill=member_type, color=member_type)) +
+    geom_bar(stat='identity', position='dodge') +
+    theme_bw() +
+    labs(title ="Number of Rides per Season", subtitle = "From the Cyclistic Bike Trips data set", x = "Seasons", y = "Number of Rides")
+```
+**This data shows the top 5 stations for casual riders**
+```{r}
+  data_2022_12_months_2 %>%
+    group_by(member_type, start_station_name) %>%
+    summarise(number_of_ride = n()) %>%
+    filter(start_station_name != "", "casual"== member_type) %>%
+    arrange(-number_of_ride) %>%
+    head(n=5) %>%
+    select(-member_type)
+```
+
+**Recommendations**
+
+My top 3 recommendations are:
+
+1. Increase marketing during Spring and Summer to bring in more riders during peak bike usages.
+
+2. Reach out to nearby businesses to promote bicycle commuting among their staff through targeted outreach.
+
+3. Offer casual users a promotional upgrade to full membership status. These promotions should target the most popular starting stations within casual users.
+
+**Further visualizations and analysis in tableau**
+
+Link: https://public.tableau.com/app/profile/dan.lee3772/viz/CyclisticBike-ShareDashboard_16853931936210/Dashboard1_1
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
